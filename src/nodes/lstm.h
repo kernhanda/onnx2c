@@ -170,6 +170,111 @@ class LSTM : public Node {
 			ERROR("Unimplmemented activation function");
 	}
 
+
+	/* Print the C code for the core LSTM kernel, inside of the "sequences" loop.
+	 * The code is almost identical for forward and backwards nodes */
+	void print_lstm_kernel(std::ostream &dst, bool forward) const
+	{
+		int dir;    // direction index into tensors that separate forward and backward (W,B,Y,...)  
+		int f_act;  // indexes for the activation functions in activations[]
+		int g_act;
+		int h_act;
+		std::string di;
+		if( forward ) {
+			dir=0;
+			f_act=0;
+			g_act=1;
+			h_act=2;
+			di="k";
+		}
+		else {
+			dir=1;
+			f_act=3;
+			g_act=4;
+			h_act=5;
+			di="ds-1-k";
+		}
+
+		dst << "\t" << "for( int i=0; i<bs; i++)" << std::endl;
+		dst << "\t" << "for( int j=0; j<hs; j++) {" << std::endl;
+		dst << "\t\t" << "ft[i][j]=0;" << std::endl;
+		dst << "\t\t" << "it[i][j]=0;" << std::endl;
+		dst << "\t\t" << "ct[i][j]=0;" << std::endl;
+
+		// Xt*W
+		dst << "\t\t" << "for( int k=0; k<ds; k++) {" << std::endl;
+		dst << "\t\t\t" << "ft[i][j] += X[s][i]["<<di<<"]*W["<<dir<<"][fidx+j][k];" << std::endl;
+		dst << "\t\t\t" << "it[i][j] += X[s][i]["<<di<<"]*W["<<dir<<"][iidx+j][k];" << std::endl;
+		dst << "\t\t\t" << "ct[i][j] += X[s][i]["<<di<<"]*W["<<dir<<"][cidx+j][k];" << std::endl;
+		dst << "\t\t" << "}" << std::endl;
+
+		// Ht-1*R
+		dst << "\t\t" << "for( int k=0; k<hs; k++) {" << std::endl;
+		dst << "\t\t\t" << "ft[i][j] += Y_h["<<dir<<"][i][k]*R["<<dir<<"][fidx+j][k];" << std::endl;
+		dst << "\t\t\t" << "ct[i][j] += Y_h["<<dir<<"][i][k]*R["<<dir<<"][cidx+j][k];" << std::endl;
+		dst << "\t\t\t" << "it[i][j] += Y_h["<<dir<<"][i][k]*R["<<dir<<"][iidx+j][k];" << std::endl;
+		dst << "\t\t" << "}" << std::endl;
+
+		if( B ) { // Bias
+		dst << "\t\t" << "ft[i][j] += B["<<dir<<"][fidx+j];" << std::endl;
+		dst << "\t\t" << "ft[i][j] += B["<<dir<<"][Rb+fidx+j];" << std::endl;
+		dst << "\t\t" << "it[i][j] += B["<<dir<<"][iidx+j];" << std::endl;
+		dst << "\t\t" << "it[i][j] += B["<<dir<<"][Rb+iidx+j];" << std::endl;
+		dst << "\t\t" << "ct[i][j] += B["<<dir<<"][cidx+j];" << std::endl;
+		dst << "\t\t" << "ct[i][j] += B["<<dir<<"][Rb+cidx+j];" << std::endl;
+		}
+		if( P ) { // Peephole
+		dst << "\t\t" << "ft[i][j] += P["<<dir<<"][fidx+j]*Y_c["<<dir<<"][i][j];" << std::endl;
+		dst << "\t\t" << "it[i][j] += P["<<dir<<"][iidx+j]*Y_c["<<dir<<"][i][j];" << std::endl;
+		// Cell gate does not have a peephole
+		}
+
+		// Activations
+		dst << "\t\t" << "ft[i][j] =";
+		print_activation( dst, activations[f_act], "ft[i][j]");
+		dst << "\t\t" << "it[i][j] =";
+		print_activation( dst, activations[f_act], "it[i][j]");
+		dst << "\t\t" << "ct[i][j] =";
+		print_activation( dst, activations[g_act], "ct[i][j]");
+		dst << "\t" << "}" << std::endl;
+
+		// Cell state, Output gate
+		dst << "\t" << "for( int i=0; i<bs; i++)" << std::endl;
+		dst << "\t" << "for( int j=0; j<hs; j++) {" << std::endl;
+		dst << "\t\t" << "/* Cell state */" << std::endl;
+		dst << "\t\t" << "Y_c["<<dir<<"][i][j] = Y_c["<<dir<<"][i][j]*ft[i][j] + it[i][j]*ct[i][j];" << std::endl;
+		dst << "\t\t" << "/* Output gate */" << std::endl;
+		dst << "\t\t" << "ot[i][j]=0;" << std::endl;
+		// X*W
+		dst << "\t\t" << "for( int k=0; k<ds; k++)" << std::endl;
+		dst << "\t\t\t" << "ot[i][j] += X[s][i]["<<di<<"]*W["<<dir<<"][oidx+j][k];" << std::endl;
+		// Ht-1*R
+		dst << "\t\t" << "for( int k=0; k<hs; k++)" << std::endl;
+		dst << "\t\t\t" << "ot[i][j] += Y_h["<<dir<<"][i][k]*R["<<dir<<"][oidx+j][k];" << std::endl;
+		if( B ) {// Bias
+		dst << "\t\t" << "ot[i][j] += B["<<dir<<"][oidx+j];" << std::endl;
+		dst << "\t\t" << "ot[i][j] += B["<<dir<<"][Rb+oidx+j];" << std::endl;
+		}
+		if( P ) // Peephole
+		dst << "\t\t" << "ot[i][j] += P["<<dir<<"][oidx+j]*Y_c["<<dir<<"][i][j];" << std::endl;
+		dst << "\t\t" << "ot[i][j] =";
+		print_activation( dst, activations[f_act], "ot[i][j]");
+		dst << "\t" << "}" << std::endl;
+
+		// Hidden state
+		dst << "\t" << "/* Hidden state */" << std::endl;
+		dst << "\t" << "for( int i=0; i<bs; i++)" << std::endl;
+		dst << "\t" << "for( int j=0; j<hs; j++) {" << std::endl;
+			dst << "\t\t" << "Y_h["<<dir<<"][i][j] = ot[i][j] * ";
+				std::string activated="Y_c[" + std::to_string(dir) + "][i][j]"; 
+				print_activation( dst, activations[h_act], activated );
+			if( Y->is_used() ) {
+				dst << "\t\t" << "Y[s]["<<dir<<"][i][j] = Y_h["<<dir<<"][i][j];" << std::endl;
+			}
+		dst << "\t" << "}" << std::endl << std::endl;
+
+	}
+
 	virtual void print(std::ostream &dst) const override
 	{
 		dst << "\t/* LSTM " << std::endl;
@@ -187,18 +292,13 @@ class LSTM : public Node {
 		dst << "\t *   Y_h = " << Y_h->cname() << std::endl;
 		dst << "\t *   Y_c = " << Y_c->cname() << std::endl;
 		dst << "\t * attributes:" << std::endl;
-		dst << "\t *   activations: f:" << activations[0];
-		dst <<         " g:" << activations[1] << " h:" << activations[2] << std::endl;
+		dst << "\t *   activations: ";
+			for( auto a : activations )
+				dst << a << " ";
+			dst << std::endl;
 		dst << "\t * (rest TBD):" << std::endl;
 		dst << "\t */" << std::endl;
 
-		/*
-		float (*Y_c)[3] = tensor_node_anonymous_LSTM_0_recursive_2[0];
-		float (*ht)[3] = tensor_Y[0];
-		float (*X)[2] = tensor_X[0];
-		float (*W)[2] = tensor_W[0];
-		float (*R)[3] = tensor_R[0];
-		*/
 		const std::string data_type = X->data_type_str();
 
 		int hs = R->data_dim[2]; //hidden size
@@ -230,83 +330,11 @@ class LSTM : public Node {
 		dst << "\t" << "/* Output gate */" << std::endl;
 		dst << "\t" << data_type << " ot[bs][hs];" << std::endl;
 		dst << std::endl;
-		dst << "\t" << "for( int s=0; s<sequence_lenght; s++) {";
-		dst << "\t" << "for( int i=0; i<bs; i++)" << std::endl;
-		dst << "\t" << "for( int j=0; j<hs; j++) {" << std::endl;
-		dst << "\t\t" << "ft[i][j]=0;" << std::endl;
-		dst << "\t\t" << "it[i][j]=0;" << std::endl;
-		dst << "\t\t" << "ct[i][j]=0;" << std::endl;
+		dst << "\t" << "for( int s=0; s<sequence_lenght; s++) {" << std::endl;
 
-		// Xt*W
-		dst << "\t\t" << "for( int k=0; k<ds; k++) {" << std::endl;
-		dst << "\t\t\t" << "ft[i][j] += X[s][i][k]*W[0][fidx+j][k];" << std::endl;
-		dst << "\t\t\t" << "it[i][j] += X[s][i][k]*W[0][iidx+j][k];" << std::endl;
-		dst << "\t\t\t" << "ct[i][j] += X[s][i][k]*W[0][cidx+j][k];" << std::endl;
-		dst << "\t\t" << "}" << std::endl;
-
-		// Ht-1*R
-		dst << "\t\t" << "for( int k=0; k<hs; k++) {" << std::endl;
-		dst << "\t\t\t" << "ft[i][j] += Y_h[0][i][k]*R[0][fidx+j][k];" << std::endl;
-		dst << "\t\t\t" << "ct[i][j] += Y_h[0][i][k]*R[0][cidx+j][k];" << std::endl;
-		dst << "\t\t\t" << "it[i][j] += Y_h[0][i][k]*R[0][iidx+j][k];" << std::endl;
-		dst << "\t\t" << "}" << std::endl;
-
-		if( B ) { // Bias
-		dst << "\t\t" << "ft[i][j] += B[0][fidx+j];" << std::endl;
-		dst << "\t\t" << "ft[i][j] += B[0][Rb+fidx+j];" << std::endl;
-		dst << "\t\t" << "it[i][j] += B[0][iidx+j];" << std::endl;
-		dst << "\t\t" << "it[i][j] += B[0][Rb+iidx+j];" << std::endl;
-		dst << "\t\t" << "ct[i][j] += B[0][cidx+j];" << std::endl;
-		dst << "\t\t" << "ct[i][j] += B[0][Rb+cidx+j];" << std::endl;
-		}
-		if( P ) { // Peephole
-		dst << "\t\t" << "ft[i][j] += P[0][fidx+j]*Y_c[0][i][j];" << std::endl;
-		dst << "\t\t" << "it[i][j] += P[0][iidx+j]*Y_c[0][i][j];" << std::endl;
-		// Cell gate does not have a peephole
-		}
-
-		// Activations
-		dst << "\t\t" << "ft[i][j] =";
-		print_activation( dst, activations[0], "ft[i][j]");
-		dst << "\t\t" << "it[i][j] =";
-		print_activation( dst, activations[0], "it[i][j]");
-		dst << "\t\t" << "ct[i][j] =";
-		print_activation( dst, activations[1], "ct[i][j]");
-		dst << "\t" << "}" << std::endl;
-
-		// Cell state, Output gate
-		dst << "\t" << "for( int i=0; i<bs; i++)" << std::endl;
-		dst << "\t" << "for( int j=0; j<hs; j++) {" << std::endl;
-		dst << "\t\t" << "/* Cell state */" << std::endl;
-		dst << "\t\t" << "Y_c[0][i][j] = Y_c[0][i][j]*ft[i][j] + it[i][j]*ct[i][j];" << std::endl;
-		dst << "\t\t" << "/* Output gate */" << std::endl;
-		dst << "\t\t" << "ot[i][j]=0;" << std::endl;
-		// X*W
-		dst << "\t\t" << "for( int k=0; k<ds; k++)" << std::endl;
-		dst << "\t\t\t" << "ot[i][j] += X[s][i][k]*W[0][oidx+j][k];" << std::endl;
-		// Ht-1*R
-		dst << "\t\t" << "for( int k=0; k<hs; k++)" << std::endl;
-		dst << "\t\t\t" << "ot[i][j] += Y_h[0][i][k]*R[0][oidx+j][k];" << std::endl;
-		if( B ) {// Bias
-		dst << "\t\t" << "ot[i][j] += B[0][oidx+j];" << std::endl;
-		dst << "\t\t" << "ot[i][j] += B[0][Rb+oidx+j];" << std::endl;
-		}
-		if( P ) // Peephole
-		dst << "\t\t" << "ot[i][j] += P[0][oidx+j]*Y_c[0][i][j];" << std::endl;
-		dst << "\t\t" << "ot[i][j] =";
-		print_activation( dst, activations[0], "ot[i][j]");
-		dst << "\t" << "}" << std::endl;
-
-		// Hidden state
-		dst << "\t" << "/* Hidden state */" << std::endl;
-		dst << "\t" << "for( int i=0; i<bs; i++)" << std::endl;
-		dst << "\t" << "for( int j=0; j<hs; j++) {" << std::endl;
-		dst << "\t\t" << "Y_h[0][i][j] = ot[i][j] * ";
-		print_activation( dst, activations[2], "Y_c[0][i][j]");
-		if( Y->is_used() ) {
-			dst << "\t\t" << "Y[s][0][i][j] = Y_h[0][i][j];" << std::endl;
-		}
-		dst << "\t" << "}" << std::endl << std::endl;
+		print_lstm_kernel(dst, /* forward= */ true); 
+		if( direction == "bidirectional" )
+			print_lstm_kernel(dst, /* forward= */ false); 
 
 		dst << "\t" << "} /* sequences */" << std::endl;
 
