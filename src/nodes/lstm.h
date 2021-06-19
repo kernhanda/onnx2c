@@ -332,7 +332,10 @@ class LSTM : public Node {
 		if( activation_beta.size() != 3 )
 			ERROR("Unimplemented/error: not 3 activation beta");
 
-		if( direction == "" || direction == "forward" )
+		// 'reverse' calculates the same as 'forward', it is left to the caller
+		// to reverse the input order
+		if( direction == "" || direction == "forward" || direction == "reverse" )
+			// TODO: this variable should be "unidirectional"
 			direction = "forward";
 		else
 			ERROR("Unimplmeneted: backward and bidirectional LSTM");
