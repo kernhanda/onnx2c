@@ -115,8 +115,14 @@ class LSTM : public Node {
 				activations = parse_attribute_strings(a);
 			else if( a.name() == "clip" )
 				clip = parse_attribute_float(a);
-			else if( a.name() == "direction" )
+			else if( a.name() == "direction" ) {
 				direction = parse_attribute_string(a);
+				if( direction == "" ) direction="forward";
+				else if(  direction != "forward"
+				        &&direction != "reverse"
+				        &&direction != "bidirectional")
+					ERROR("Bad value ("<<direction<<") for direction attribute");
+			}
 			else if( a.name() == "hidden_size" )
 				hidden_size = parse_attribute_int(a);
 			else if( a.name() == "input_forget" )
@@ -317,10 +323,14 @@ class LSTM : public Node {
 			activations.push_back("Sigmoid");
 			activations.push_back("Tanh");
 			activations.push_back("Tanh");
+			if( direction == "bidirectional" ) {
+				activations.push_back("Sigmoid");
+				activations.push_back("Tanh");
+				activations.push_back("Tanh");
+			}
 		}
 		if( activations.size() == 6 )
-			ERROR("Unimplemented - bidirectional LSTM");
-		if( activations.size() != 3 )
+		if( activations.size() != 3 && activations.size() != 6)
 			ERROR("Error - bad number of activations attributes");
 
 		if( activation_alpha.size() == 0 ) {
@@ -328,23 +338,24 @@ class LSTM : public Node {
 				activation_alpha.push_back(get_activation_alpha(a));
 			}
 		}
-		if( activation_alpha.size() != 3 )
-			ERROR("Unimplemented/error: not 3 activation alphas");
+		if( activation_alpha.size() != 3 && activation_alpha.size() != 6)
+			ERROR("Unimplemented/error: not 3(6) activation alphas");
+
 		if( activation_beta.size() == 0 ) {
 			for( auto &a : activations ) {
 				activation_beta.push_back(get_activation_beta(a));
 			}
 		}
-		if( activation_beta.size() != 3 )
-			ERROR("Unimplemented/error: not 3 activation beta");
+		if( activation_beta.size() != 3 && activation_beta.size() != 6)
+			ERROR("Unimplemented/error: not 3(6) activation betas");
 
 		// 'reverse' calculates the same as 'forward', it is left to the caller
 		// to reverse the input order
-		if( direction == "" || direction == "forward" || direction == "reverse" )
-			// TODO: this variable should be "unidirectional"
-			direction = "forward";
-		else
-			ERROR("Unimplmeneted: backward and bidirectional LSTM");
+		//if( direction == "" || direction == "forward" || direction == "reverse" )
+		//	// TODO: this variable should be "unidirectional"
+		//	direction = "forward";
+		//else
+		//	ERROR("Unimplmeneted: backward and bidirectional LSTM");
 
 		if( hidden_size < 0 )
 			ERROR("Must provide hidden_size attribute!");
@@ -369,11 +380,7 @@ class LSTM : public Node {
 
 		int seq_length = X->data_dim[0];
 		int batch_size = X->data_dim[1];
-		//int input_size = X->data_dim[2];
 		int num_directions = W->data_dim[0];
-
-		if( num_directions != 1 )
-			ERROR("Unimplmeneted: bidirectional LSTM");
 
 		if( sequence_lens ) {
 			if( static_cast<int>(sequence_lens->rank()) != batch_size )
@@ -384,14 +391,13 @@ class LSTM : public Node {
 					ERROR("Error: requested sequence lenght is longer than input data");
 		}
 
-		// TODO: write all sorts of assertions here. Or just assume
-		// the onnx model is according to specifications?
+
+		// Generate output tensors.
 
 		Y = new Tensor;
 		Y->data_type = X->data_type;
 		std::vector<int> y_size({ seq_length, num_directions, batch_size, hidden_size });
 		Y->data_dim = y_size;
-
 
 		// Y_h and Y_c are special: optional as outputs to the rest of the network,
 		// but mandatory as outputs to this node itself. Also, they alias
