@@ -89,15 +89,15 @@ class LSTM : public Node {
 			dst << ", ";
 			P->print_tensor(dst, !decorate, !decorate?"":"P");
 		}
-		if( Y->name != "" ) {
+		if( Y->is_used() ) {
 			dst << ", ";
 			Y->print_tensor(dst, !decorate, !decorate?"":"Y");
 		}
-		if( Y_h->name != "" && Y_h->isAliasOf==NULL ) {
+		if( Y_h->is_used() && Y_h->isAliasOf==NULL ) {
 			dst << ", ";
 			Y_h->print_tensor(dst, !decorate, !decorate?"":"Y_h");
 		}
-		if( Y_c->name != "" && Y_c->isAliasOf==NULL) {
+		if( Y_c->is_used() && Y_c->isAliasOf==NULL) {
 			dst << ", ";
 			Y_c->print_tensor(dst, !decorate, !decorate?"":"Y_c");
 		}
@@ -294,9 +294,13 @@ class LSTM : public Node {
 		// Hidden state
 		dst << "\t" << "/* Hidden state */" << std::endl;
 		dst << "\t" << "for( int i=0; i<bs; i++)" << std::endl;
-		dst << "\t" << "for( int j=0; j<hs; j++)" << std::endl;
+		dst << "\t" << "for( int j=0; j<hs; j++) {" << std::endl;
 		dst << "\t\t" << "Y_h[0][i][j] = ot[i][j] * ";
 		print_activation( dst, activations[2], "Y_c[0][i][j]");
+		if( Y->is_used() ) {
+			dst << "\t\t" << "Y[s][0][i][j] = Y_h[0][i][j];" << std::endl;
+		}
+		dst << "\t" << "}" << std::endl << std::endl;
 
 		dst << "\t" << "} /* sequences */" << std::endl;
 

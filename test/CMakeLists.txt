@@ -288,17 +288,17 @@ add_subdirectory(squeezenet-1.1)
 
 # local op tests 
 ONNX_backend_node_local_test(matmul_precision)
-#ONNX_backend_node_local_test(lstm_all_outputs)
+ONNX_backend_node_local_test(lstm_all_outputs)
 ONNX_backend_node_local_test(lstm_activations)
 #ONNX_backend_node_local_test(lstm_bidirectional)
 #ONNX_backend_node_local_test(lstm_clip)
-#ONNX_backend_node_local_test(lstm_intermediate_h)
+ONNX_backend_node_local_test(lstm_intermediate_h)
 ONNX_backend_node_local_test(lstm_reverse)
 ONNX_backend_node_local_test(lstm_seq_length)
 #ONNX_backend_node_local_test(lstm_with_initial_c)
 #ONNX_backend_node_local_test(lstm_with_initial_h)
 #ONNX_backend_node_local_test(lstm_with_initial_h_and_c)
-#ONNX_backend_node_local_test(lstm_y_c)
+ONNX_backend_node_local_test(lstm_y_c)
 
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/perftest.cmake)
