@@ -175,7 +175,7 @@ class LSTM : public Node {
 	 * The code is almost identical for forward and backwards nodes */
 	void print_lstm_kernel(std::ostream &dst, bool forward) const
 	{
-		int dir;    // direction index into tensors that separate forward and backward (W,B,Y,...)  
+		int dir;    // direction index into tensors that separate forward and backward (W,B,Y,...)
 		int f_act;  // indexes for the activation functions in activations[]
 		int g_act;
 		int h_act;
@@ -195,109 +195,109 @@ class LSTM : public Node {
 			di="ds-1-k";
 		}
 
-		dst << "\t" << "for( int i=0; i<bs; i++)" << std::endl;
-		dst << "\t" << "for( int j=0; j<hs; j++) {" << std::endl;
-		dst << "\t\t" << "ft[i][j]=0;" << std::endl;
-		dst << "\t\t" << "it[i][j]=0;" << std::endl;
-		dst << "\t\t" << "ct[i][j]=0;" << std::endl;
+		INDT_2<<  "for( int i=0; i<bs; i++)" << std::endl;
+		INDT_2<<  "for( int j=0; j<hs; j++) {" << std::endl;
+		INDT_3<<  "ft[i][j]=0;" << std::endl;
+		INDT_3<<  "it[i][j]=0;" << std::endl;
+		INDT_3<<  "ct[i][j]=0;" << std::endl;
 
 		// Xt*W
-		dst << "\t\t" << "for( int k=0; k<ds; k++) {" << std::endl;
-		dst << "\t\t\t" << "ft[i][j] += X[s][i]["<<di<<"]*W["<<dir<<"][fidx+j][k];" << std::endl;
-		dst << "\t\t\t" << "it[i][j] += X[s][i]["<<di<<"]*W["<<dir<<"][iidx+j][k];" << std::endl;
-		dst << "\t\t\t" << "ct[i][j] += X[s][i]["<<di<<"]*W["<<dir<<"][cidx+j][k];" << std::endl;
-		dst << "\t\t" << "}" << std::endl;
+		INDT_3<<  "for( int k=0; k<ds; k++) {" << std::endl;
+		INDT_4<<  "ft[i][j] += X[s][i]["<<di<<"]*W["<<dir<<"][fidx+j][k];" << std::endl;
+		INDT_4<<  "it[i][j] += X[s][i]["<<di<<"]*W["<<dir<<"][iidx+j][k];" << std::endl;
+		INDT_4<<  "ct[i][j] += X[s][i]["<<di<<"]*W["<<dir<<"][cidx+j][k];" << std::endl;
+		INDT_3<<  "}" << std::endl;
 
 		// Ht-1*R
-		dst << "\t\t" << "for( int k=0; k<hs; k++) {" << std::endl;
-		dst << "\t\t\t" << "ft[i][j] += Y_h["<<dir<<"][i][k]*R["<<dir<<"][fidx+j][k];" << std::endl;
-		dst << "\t\t\t" << "ct[i][j] += Y_h["<<dir<<"][i][k]*R["<<dir<<"][cidx+j][k];" << std::endl;
-		dst << "\t\t\t" << "it[i][j] += Y_h["<<dir<<"][i][k]*R["<<dir<<"][iidx+j][k];" << std::endl;
-		dst << "\t\t" << "}" << std::endl;
+		INDT_3<<  "for( int k=0; k<hs; k++) {" << std::endl;
+		INDT_4<<  "ft[i][j] += Y_h["<<dir<<"][i][k]*R["<<dir<<"][fidx+j][k];" << std::endl;
+		INDT_4<<  "ct[i][j] += Y_h["<<dir<<"][i][k]*R["<<dir<<"][cidx+j][k];" << std::endl;
+		INDT_4<<  "it[i][j] += Y_h["<<dir<<"][i][k]*R["<<dir<<"][iidx+j][k];" << std::endl;
+		INDT_3<<  "}" << std::endl;
 
 		if( B ) { // Bias
-		dst << "\t\t" << "ft[i][j] += B["<<dir<<"][fidx+j];" << std::endl;
-		dst << "\t\t" << "ft[i][j] += B["<<dir<<"][Rb+fidx+j];" << std::endl;
-		dst << "\t\t" << "it[i][j] += B["<<dir<<"][iidx+j];" << std::endl;
-		dst << "\t\t" << "it[i][j] += B["<<dir<<"][Rb+iidx+j];" << std::endl;
-		dst << "\t\t" << "ct[i][j] += B["<<dir<<"][cidx+j];" << std::endl;
-		dst << "\t\t" << "ct[i][j] += B["<<dir<<"][Rb+cidx+j];" << std::endl;
+		INDT_3<<  "ft[i][j] += B["<<dir<<"][fidx+j];" << std::endl;
+		INDT_3<<  "ft[i][j] += B["<<dir<<"][Rb+fidx+j];" << std::endl;
+		INDT_3<<  "it[i][j] += B["<<dir<<"][iidx+j];" << std::endl;
+		INDT_3<<  "it[i][j] += B["<<dir<<"][Rb+iidx+j];" << std::endl;
+		INDT_3<<  "ct[i][j] += B["<<dir<<"][cidx+j];" << std::endl;
+		INDT_3<<  "ct[i][j] += B["<<dir<<"][Rb+cidx+j];" << std::endl;
 		}
 		if( P ) { // Peephole
-		dst << "\t\t" << "ft[i][j] += P["<<dir<<"][fidx+j]*Y_c["<<dir<<"][i][j];" << std::endl;
-		dst << "\t\t" << "it[i][j] += P["<<dir<<"][iidx+j]*Y_c["<<dir<<"][i][j];" << std::endl;
+		INDT_3<<  "ft[i][j] += P["<<dir<<"][fidx+j]*Y_c["<<dir<<"][i][j];" << std::endl;
+		INDT_3<<  "it[i][j] += P["<<dir<<"][iidx+j]*Y_c["<<dir<<"][i][j];" << std::endl;
 		// Cell gate does not have a peephole
 		}
 
 		// Activations
-		dst << "\t\t" << "ft[i][j] =";
+		INDT_3<<  "ft[i][j] =";
 		print_activation( dst, activations[f_act], "ft[i][j]");
-		dst << "\t\t" << "it[i][j] =";
+		INDT_3<<  "it[i][j] =";
 		print_activation( dst, activations[f_act], "it[i][j]");
-		dst << "\t\t" << "ct[i][j] =";
+		INDT_3<<  "ct[i][j] =";
 		print_activation( dst, activations[g_act], "ct[i][j]");
-		dst << "\t" << "}" << std::endl;
+		INDT_2<< "}" << std::endl;
 
 		// Cell state, Output gate
-		dst << "\t" << "for( int i=0; i<bs; i++)" << std::endl;
-		dst << "\t" << "for( int j=0; j<hs; j++) {" << std::endl;
-		dst << "\t\t" << "/* Cell state */" << std::endl;
-		dst << "\t\t" << "Y_c["<<dir<<"][i][j] = Y_c["<<dir<<"][i][j]*ft[i][j] + it[i][j]*ct[i][j];" << std::endl;
-		dst << "\t\t" << "/* Output gate */" << std::endl;
-		dst << "\t\t" << "ot[i][j]=0;" << std::endl;
+		INDT_2<<  "for( int i=0; i<bs; i++)" << std::endl;
+		INDT_2<<  "for( int j=0; j<hs; j++) {" << std::endl;
+		INDT_3<<  "/* Cell state */" << std::endl;
+		INDT_3<<  "Y_c["<<dir<<"][i][j] = Y_c["<<dir<<"][i][j]*ft[i][j] + it[i][j]*ct[i][j];" << std::endl;
+		INDT_3<<  "/* Output gate */" << std::endl;
+		INDT_3<<  "ot[i][j]=0;" << std::endl;
 		// X*W
-		dst << "\t\t" << "for( int k=0; k<ds; k++)" << std::endl;
-		dst << "\t\t\t" << "ot[i][j] += X[s][i]["<<di<<"]*W["<<dir<<"][oidx+j][k];" << std::endl;
+		INDT_3<<  "for( int k=0; k<ds; k++)" << std::endl;
+		INDT_4<<  "ot[i][j] += X[s][i]["<<di<<"]*W["<<dir<<"][oidx+j][k];" << std::endl;
 		// Ht-1*R
-		dst << "\t\t" << "for( int k=0; k<hs; k++)" << std::endl;
-		dst << "\t\t\t" << "ot[i][j] += Y_h["<<dir<<"][i][k]*R["<<dir<<"][oidx+j][k];" << std::endl;
+		INDT_3<<  "for( int k=0; k<hs; k++)" << std::endl;
+		INDT_4<<  "ot[i][j] += Y_h["<<dir<<"][i][k]*R["<<dir<<"][oidx+j][k];" << std::endl;
 		if( B ) {// Bias
-		dst << "\t\t" << "ot[i][j] += B["<<dir<<"][oidx+j];" << std::endl;
-		dst << "\t\t" << "ot[i][j] += B["<<dir<<"][Rb+oidx+j];" << std::endl;
+		INDT_3<<  "ot[i][j] += B["<<dir<<"][oidx+j];" << std::endl;
+		INDT_3<<  "ot[i][j] += B["<<dir<<"][Rb+oidx+j];" << std::endl;
 		}
 		if( P ) // Peephole
-		dst << "\t\t" << "ot[i][j] += P["<<dir<<"][oidx+j]*Y_c["<<dir<<"][i][j];" << std::endl;
-		dst << "\t\t" << "ot[i][j] =";
+		INDT_3<<  "ot[i][j] += P["<<dir<<"][oidx+j]*Y_c["<<dir<<"][i][j];" << std::endl;
+		INDT_3<<  "ot[i][j] =";
 		print_activation( dst, activations[f_act], "ot[i][j]");
-		dst << "\t" << "}" << std::endl;
+		INDT_2<<  "}" << std::endl;
 
 		// Hidden state
-		dst << "\t" << "/* Hidden state */" << std::endl;
-		dst << "\t" << "for( int i=0; i<bs; i++)" << std::endl;
-		dst << "\t" << "for( int j=0; j<hs; j++) {" << std::endl;
-			dst << "\t\t" << "Y_h["<<dir<<"][i][j] = ot[i][j] * ";
-				std::string activated="Y_c[" + std::to_string(dir) + "][i][j]"; 
+		INDT_2<<  "/* Hidden state */" << std::endl;
+		INDT_2<<  "for( int i=0; i<bs; i++)" << std::endl;
+		INDT_2<<  "for( int j=0; j<hs; j++) {" << std::endl;
+			INDT_3<<  "Y_h["<<dir<<"][i][j] = ot[i][j] * ";
+				std::string activated="Y_c[" + std::to_string(dir) + "][i][j]";
 				print_activation( dst, activations[h_act], activated );
 			if( Y->is_used() ) {
-				dst << "\t\t" << "Y[s]["<<dir<<"][i][j] = Y_h["<<dir<<"][i][j];" << std::endl;
+				INDT_3<<  "Y[s]["<<dir<<"][i][j] = Y_h["<<dir<<"][i][j];" << std::endl;
 			}
-		dst << "\t" << "}" << std::endl << std::endl;
+		INDT_2<<  "}" << std::endl << std::endl;
 
 	}
 
 	virtual void print(std::ostream &dst) const override
 	{
-		dst << "\t/* LSTM " << std::endl;
-		dst << "\t * inputs: " << std::endl;
-		dst << "\t *   X = " << X->cname() << std::endl;
-		dst << "\t *   W = " << W->cname() << std::endl;
-		dst << "\t *   R = " << R->cname() << std::endl;
-		dst << "\t *   B = " << (B?B->cname():"") << std::endl;
-		dst << "\t *   sequence_lens = " << (sequence_lens?sequence_lens->cname():"") << std::endl;
-		dst << "\t *   initial_h = " << (initial_h?initial_h->cname():"") << std::endl;
-		dst << "\t *   initial_c = " << (initial_c?initial_c->cname():"") << std::endl;
-		dst << "\t *   P = " << (P?P->cname():"") << std::endl;
-		dst << "\t * outputs: " << std::endl;
-		dst << "\t *   Y = " << Y->cname() << std::endl;
-		dst << "\t *   Y_h = " << Y_h->cname() << std::endl;
-		dst << "\t *   Y_c = " << Y_c->cname() << std::endl;
-		dst << "\t * attributes:" << std::endl;
-		dst << "\t *   activations: ";
+		INDT_1<< "/* LSTM " << std::endl;
+		INDT_1<< " * inputs: " << std::endl;
+		INDT_1<< " *   X = " << X->cname() << std::endl;
+		INDT_1<< " *   W = " << W->cname() << std::endl;
+		INDT_1<< " *   R = " << R->cname() << std::endl;
+		INDT_1<< " *   B = " << (B?B->cname():"") << std::endl;
+		INDT_1<< " *   sequence_lens = " << (sequence_lens?sequence_lens->cname():"") << std::endl;
+		INDT_1<< " *   initial_h = " << (initial_h?initial_h->cname():"") << std::endl;
+		INDT_1<< " *   initial_c = " << (initial_c?initial_c->cname():"") << std::endl;
+		INDT_1<< " *   P = " << (P?P->cname():"") << std::endl;
+		INDT_1<< " * outputs: " << std::endl;
+		INDT_1<< " *   Y = " << Y->cname() << std::endl;
+		INDT_1<< " *   Y_h = " << Y_h->cname() << std::endl;
+		INDT_1<< " *   Y_c = " << Y_c->cname() << std::endl;
+		INDT_1<< " * attributes:" << std::endl;
+		INDT_1<< " *   activations: ";
 			for( auto a : activations )
 				dst << a << " ";
 			dst << std::endl;
-		dst << "\t * (rest TBD):" << std::endl;
-		dst << "\t */" << std::endl;
+		INDT_1<< " * (rest TBD):" << std::endl;
+		INDT_1<< " */" << std::endl;
 
 		const std::string data_type = X->data_type_str();
 
@@ -306,37 +306,43 @@ class LSTM : public Node {
 		int bs = X->data_dim[1]; // batch size
 
 
-		dst << "\t" << "int hs = " << hs << ";" << std::endl;
-		dst << "\t" << "int ds = " << ds << ";" << std::endl;
-		dst << "\t" << "int bs = " << bs << ";" << std::endl;
+		INDT_1<<  "int hs = " << hs << ";" << std::endl;
+		INDT_1<<  "int ds = " << ds << ";" << std::endl;
+		INDT_1<<  "int bs = " << bs << ";" << std::endl;
 		// index into W, R to get the start of the gate indices
-		dst << "\t" << "int iidx = 0;" << std::endl;
-		dst << "\t" << "int oidx = hs;" << std::endl;
-		dst << "\t" << "int fidx = 2*hs;" << std::endl;
-		dst << "\t" << "int cidx = 3*hs;" << std::endl;
+		INDT_1<<  "int iidx = 0;" << std::endl;
+		INDT_1<<  "int oidx = hs;" << std::endl;
+		INDT_1<<  "int fidx = 2*hs;" << std::endl;
+		INDT_1<<  "int cidx = 3*hs;" << std::endl;
 		// index into B, to get Rb. Add *iidx too. Wb is B at offset 0
-		dst << "\t" << "int Rb = 4*hs;" << std::endl;
+		INDT_1<<  "int Rb = 4*hs;" << std::endl;
 		// TODO: variable lenght sequences not yet implemented
-		dst << "\t" << "int sequence_lenght = " <<  X->data_dim[0] << ";" << std::endl;
+		INDT_1<<  "int sequence_lenght = " <<  X->data_dim[0] << ";" << std::endl;
 
 		// TODO: these temporary variables are BIG. Make them global to minimize
 		// stack usage? Probably needs to be an onnx2c flag for user to select
-		dst << "\t" << "/* Forget gate */" << std::endl;
-		dst << "\t" << data_type << " ft[bs][hs];" << std::endl;
-		dst << "\t" << "/* Input gate */" << std::endl;
-		dst << "\t" << data_type << " it[bs][hs];" << std::endl;
-		dst << "\t" << "/* Cell gate */" << std::endl;
-		dst << "\t" << data_type << " ct[bs][hs];" << std::endl;
-		dst << "\t" << "/* Output gate */" << std::endl;
-		dst << "\t" << data_type << " ot[bs][hs];" << std::endl;
+		INDT_1<<  "/* Forget gate */" << std::endl;
+		INDT_1<<  data_type << " ft[bs][hs];" << std::endl;
+		INDT_1<<  "/* Input gate */" << std::endl;
+		INDT_1<<  data_type << " it[bs][hs];" << std::endl;
+		INDT_1<<  "/* Cell gate */" << std::endl;
+		INDT_1<<  data_type << " ct[bs][hs];" << std::endl;
+		INDT_1<<  "/* Output gate */" << std::endl;
+		INDT_1<<  data_type << " ot[bs][hs];" << std::endl;
 		dst << std::endl;
-		dst << "\t" << "for( int s=0; s<sequence_lenght; s++) {" << std::endl;
+		INDT_1<<  "for( int s=0; s<sequence_lenght; s++) {" << std::endl;
 
-		print_lstm_kernel(dst, /* forward= */ true); 
-		if( direction == "bidirectional" )
-			print_lstm_kernel(dst, /* forward= */ false); 
+		dst << std::endl;
+		INDT_1<<  "/* Forward lane */" << std::endl;
+		print_lstm_kernel(dst, /* forward= */ true);
 
-		dst << "\t" << "} /* sequences */" << std::endl;
+		if( direction == "bidirectional" ) {
+			dst << std::endl;
+			INDT_1<<  "/* Backward lane */" << std::endl;
+			print_lstm_kernel(dst, /* forward= */ false);
+		}
+
+		INDT_1<<  "} /* sequences */" << std::endl;
 
 	}
 
