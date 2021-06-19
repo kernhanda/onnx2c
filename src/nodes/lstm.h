@@ -199,9 +199,6 @@ class LSTM : public Node {
 		int ds = X->data_dim[2]; //input (data) size
 		int bs = X->data_dim[1]; // batch size
 
-		if( X->data_dim[0] != 1 )
-			ERROR("Unimplemented: sequence lenght of not 1");
-
 
 		dst << "\t" << "int hs = " << hs << ";" << std::endl;
 		dst << "\t" << "int ds = " << ds << ";" << std::endl;
@@ -213,6 +210,8 @@ class LSTM : public Node {
 		dst << "\t" << "int cidx = 3*hs;" << std::endl;
 		// index into B, to get Rb. Add *iidx too. Wb is B at offset 0
 		dst << "\t" << "int Rb = 4*hs;" << std::endl;
+		// TODO: variable lenght sequences not yet implemented
+		dst << "\t" << "int sequence_lenght = " <<  X->data_dim[0] << ";" << std::endl;
 
 		// TODO: these temporary variables are BIG. Make them global to minimize
 		// stack usage? Probably needs to be an onnx2c flag for user to select
@@ -225,6 +224,7 @@ class LSTM : public Node {
 		dst << "\t" << "/* Output gate */" << std::endl;
 		dst << "\t" << data_type << " ot[bs][hs];" << std::endl;
 		dst << std::endl;
+		dst << "\t" << "for( int s=0; s<sequence_lenght; s++) {";
 		dst << "\t" << "for( int i=0; i<bs; i++)" << std::endl;
 		dst << "\t" << "for( int j=0; j<hs; j++) {" << std::endl;
 		dst << "\t\t" << "ft[i][j]=0;" << std::endl;
@@ -233,9 +233,9 @@ class LSTM : public Node {
 
 		// Xt*W
 		dst << "\t\t" << "for( int k=0; k<ds; k++) {" << std::endl;
-		dst << "\t\t\t" << "ft[i][j] += X[0][i][k]*W[0][fidx+j][k];" << std::endl;
-		dst << "\t\t\t" << "it[i][j] += X[0][i][k]*W[0][iidx+j][k];" << std::endl;
-		dst << "\t\t\t" << "ct[i][j] += X[0][i][k]*W[0][cidx+j][k];" << std::endl;
+		dst << "\t\t\t" << "ft[i][j] += X[s][i][k]*W[0][fidx+j][k];" << std::endl;
+		dst << "\t\t\t" << "it[i][j] += X[s][i][k]*W[0][iidx+j][k];" << std::endl;
+		dst << "\t\t\t" << "ct[i][j] += X[s][i][k]*W[0][cidx+j][k];" << std::endl;
 		dst << "\t\t" << "}" << std::endl;
 
 		// Ht-1*R
@@ -277,7 +277,7 @@ class LSTM : public Node {
 		dst << "\t\t" << "ot[i][j]=0;" << std::endl;
 		// X*W
 		dst << "\t\t" << "for( int k=0; k<ds; k++)" << std::endl;
-		dst << "\t\t\t" << "ot[i][j] += X[0][i][k]*W[0][oidx+j][k];" << std::endl;
+		dst << "\t\t\t" << "ot[i][j] += X[s][i][k]*W[0][oidx+j][k];" << std::endl;
 		// Ht-1*R
 		dst << "\t\t" << "for( int k=0; k<hs; k++)" << std::endl;
 		dst << "\t\t\t" << "ot[i][j] += Y_h[0][i][k]*R[0][oidx+j][k];" << std::endl;
@@ -297,6 +297,8 @@ class LSTM : public Node {
 		dst << "\t" << "for( int j=0; j<hs; j++)" << std::endl;
 		dst << "\t\t" << "Y_h[0][i][j] = ot[i][j] * ";
 		print_activation( dst, activations[2], "Y_c[0][i][j]");
+
+		dst << "\t" << "} /* sequences */" << std::endl;
 
 	}
 
@@ -368,6 +370,15 @@ class LSTM : public Node {
 
 		if( num_directions != 1 )
 			ERROR("Unimplmeneted: bidirectional LSTM");
+
+		if( sequence_lens ) {
+			if( static_cast<int>(sequence_lens->rank()) != batch_size )
+				ERROR("If providing sequence lengths, there must be 'batch_size' of them");
+			for( auto sl : sequence_lens->data_dim )
+				if( sl < seq_length )
+					// Not quite sure if I understand the documentation correctly here.
+					ERROR("Error: requested sequence lenght is longer than input data");
+		}
 
 		// TODO: write all sorts of assertions here. Or just assume
 		// the onnx model is according to specifications?
