@@ -417,7 +417,9 @@ class LSTM : public Node {
 		int num_directions = W->data_dim[0];
 
 		if( sequence_lens ) {
-			if( static_cast<int>(sequence_lens->rank()) != batch_size )
+			if( static_cast<int>(sequence_lens->rank()) != 1 )
+				ERROR("If providing sequence lengths, it must be a 1D tensor");
+			if( static_cast<int>(sequence_lens->data_dim[0]) != batch_size )
 				ERROR("If providing sequence lengths, there must be 'batch_size' of them");
 			for( auto sl : sequence_lens->data_dim )
 				if( sl < seq_length )

@@ -199,7 +199,7 @@ ONNX_backend_node_test(globalaveragepool_precomputed)
 
 ONNX_backend_node_test(lstm_defaults)
 ONNX_backend_node_test(lstm_with_initial_bias)
-#ONNX_backend_node_test(lstm_with_peepholes)
+ONNX_backend_node_test(lstm_with_peepholes)
 
 ONNX_backend_node_test(matmul_2d)
 #ONNX_backend_node_test(matmul_3d)
