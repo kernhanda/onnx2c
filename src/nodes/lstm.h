@@ -157,8 +157,14 @@ class LSTM : public Node {
 		ERROR("Unhandled: beta for activation: " << a);
 	}
 
-	void print_activation(std::ostream &dst, const std::string &activation, const std::string &variable) const
+	void print_activation(std::ostream &dst, const std::string &activation, const std::string &var) const
 	{
+		std::string variable;
+		if( clip < 0 )
+			variable=var;
+		else
+			variable="CLIP(" + var + ", " + std::to_string(clip) + ")";
+
 		if( activation == "Sigmoid" )
 			dst << "1.0f/(1+expf(-" << variable << "));" << std::endl;
 		else if (activation == "Tanh" )
@@ -296,6 +302,7 @@ class LSTM : public Node {
 			for( auto a : activations )
 				dst << a << " ";
 			dst << std::endl;
+		INDT_1<< " * clip: " << (clip > 0 ? std::to_string(clip) : "off") << std::endl;
 		INDT_1<< " * (rest TBD):" << std::endl;
 		INDT_1<< " */" << std::endl;
 
